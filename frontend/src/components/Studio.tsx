@@ -18,7 +18,11 @@ import {
   User,
   Users,
   TrendingUp,
-  Trash2
+  Trash2,
+  Image as ImageIcon,
+  Wand2,
+  Download,
+  Sparkles
 } from 'lucide-react';
 
 interface ActiveStream {
@@ -69,6 +73,11 @@ const Studio = () => {
   const [serverConfig, setServerConfig] = useState<{supabase: boolean | string, youtube: boolean} | null>(null);
   const [targetMode, setTargetMode] = useState<'local' | 'cloud'>('local');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Thumbnail generator states
+  const [thumbPrompt, setThumbPrompt] = useState('');
+  const [genThumbnailUrl, setGenThumbnailUrl] = useState<string | null>(null);
+  const [isGeneratingThumb, setIsGeneratingThumb] = useState(false);
 
   // Helper to resolve non-direct links (Google Drive, Dropbox)
   const resolveDirectLink = (url: string) => {
@@ -380,6 +389,44 @@ const Studio = () => {
       setShowManualAccount(false);
     } catch (err) {
       console.error('Failed to add manual account:', err);
+    }
+  };
+
+  const generateThumbnail = () => {
+    if (!thumbPrompt) return;
+    setIsGeneratingThumb(true);
+    setGenThumbnailUrl(null);
+    
+    const seed = Math.floor(Math.random() * 10000000);
+    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(thumbPrompt)}?width=1280&height=720&nologo=true&seed=${seed}`;
+    
+    const img = new Image();
+    img.src = url;
+    img.onload = () => {
+      setGenThumbnailUrl(url);
+      setIsGeneratingThumb(false);
+    };
+    img.onerror = () => {
+      setIsGeneratingThumb(false);
+      setErrorMessage('Failed to generate thumbnail via AI pipeline. Please try again.');
+    };
+  };
+
+  const downloadThumbnail = async () => {
+    if (!genThumbnailUrl) return;
+    try {
+      const response = await fetch(genThumbnailUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `zmare-thumbnail-${Date.now()}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Download failed', err);
     }
   };
 
@@ -698,6 +745,71 @@ const Studio = () => {
             </section>
           </div>
         </div>
+
+        {/* AI Thumbnail Studio Section */}
+        <section className="bg-gradient-to-r from-indigo-900/40 via-purple-900/40 to-black border border-indigo-500/20 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -mr-20 -mt-20 mix-blend-screen pointer-events-none" />
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30">
+                <Wand2 className="w-5 h-5 text-indigo-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold uppercase tracking-[0.2em] text-white flex items-center gap-2">
+                  AI Thumbnail Studio <Sparkles className="w-4 h-4 text-yellow-500" />
+                </h2>
+                <p className="text-[10px] text-indigo-300/60 uppercase tracking-widest font-medium mt-1">Synthesize 4K Stream Thumbnails instantly</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-[1fr,400px] gap-8">
+              <div className="space-y-4 flex flex-col justify-center">
+                <div className="relative">
+                  <textarea
+                    placeholder="Describe your perfect thumbnail... (e.g. Cyberpunk DJ playing music on a neon stage, octane render, 8k)"
+                    value={thumbPrompt}
+                    onChange={(e) => setThumbPrompt(e.target.value)}
+                    className="w-full bg-black/40 border border-indigo-500/20 rounded-2xl p-4 min-h-[120px] text-sm focus:border-indigo-500 focus:outline-none transition-all placeholder:text-white/20 custom-scrollbar resize-none"
+                  />
+                </div>
+                <button 
+                   onClick={generateThumbnail}
+                   disabled={!thumbPrompt || isGeneratingThumb}
+                   className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold uppercase tracking-widest text-xs hover:bg-indigo-500 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isGeneratingThumb ? <RefreshCw className="animate-spin w-4 h-4" /> : <Wand2 className="w-4 h-4" />}
+                  {isGeneratingThumb ? 'Synthesizing Matrix...' : 'Generate AI Thumbnail'}
+                </button>
+              </div>
+              
+              <div className="bg-black/50 border border-white/5 rounded-2xl aspect-video relative flex items-center justify-center overflow-hidden">
+                {genThumbnailUrl ? (
+                  <>
+                    <img src={genThumbnailUrl} alt="Generated Thumbnail" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 hover:opacity-100 transition-opacity flex items-end justify-center pb-6">
+                      <button 
+                        onClick={downloadThumbnail}
+                        className="bg-white text-black px-6 py-3 rounded-full font-bold uppercase tracking-widest text-[10px] flex items-center gap-2 hover:bg-yellow-500 transition-colors shadow-2xl"
+                      >
+                        <Download className="w-4 h-4" /> Save HD Image
+                      </button>
+                    </div>
+                  </>
+                ) : isGeneratingThumb ? (
+                  <div className="flex flex-col items-center gap-4">
+                     <div className="w-12 h-12 rounded-full border-2 border-indigo-500/30 border-t-indigo-500 animate-spin" />
+                     <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest animate-pulse">Rendering Pixels...</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-4 opacity-30">
+                    <ImageIcon className="w-12 h-12" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-center px-4">Preview Window<br/>Your generated thumbnail will appear here</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
 
         {/* Bottom Section: Active Streams */}
         <section className="space-y-6">
