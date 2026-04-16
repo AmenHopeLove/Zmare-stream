@@ -1,0 +1,10 @@
+node_modules/
+media/
+*.zip
+.env
+dist/
+build/
+.DS_Store
+hf_space/
+hf_space2/
+hf_space3/
