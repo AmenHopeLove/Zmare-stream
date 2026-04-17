@@ -186,4 +186,27 @@ router.post('/fetch-youtube', async (req, res) => {
   }
 });
 
+router.get('/ai-thumbnail', async (req, res) => {
+  const { prompt, seed } = req.query;
+  if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
+
+  try {
+    const response = await axios({
+      method: 'get',
+      url: `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1280&height=720&nologo=true&seed=${seed || '123'}`,
+      responseType: 'stream',
+      timeout: 30000
+    });
+    
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Access-Control-Allow-Origin', '*'); 
+    response.data.pipe(res);
+  } catch (error) {
+    console.error('AI Proxy Error:', error.message);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'AI Generator node unreachable' });
+    }
+  }
+});
+
 export default router;

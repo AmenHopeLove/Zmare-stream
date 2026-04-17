@@ -396,14 +396,17 @@ const Studio = () => {
     if (!thumbPrompt) return;
     setIsGeneratingThumb(true);
     setGenThumbnailUrl(null);
+    setErrorMessage(null);
     
     const seed = Math.floor(Math.random() * 10000000);
-    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(thumbPrompt)}?width=1280&height=720&nologo=true&seed=${seed}`;
+    // Explicitly pipe this specific connection through the Hugging Face Cloud endpoint even if in Local Engine mode
+    // This physically bypasses local country ISP censorship or timeouts against Image Generation CDNs
+    const proxyUrl = `https://amen4-zmare-dashboard.hf.space/api/upload/ai-thumbnail?prompt=${encodeURIComponent(thumbPrompt)}&seed=${seed}`;
     
     const img = new Image();
-    img.src = url;
+    img.src = proxyUrl;
     img.onload = () => {
-      setGenThumbnailUrl(url);
+      setGenThumbnailUrl(proxyUrl);
       setIsGeneratingThumb(false);
     };
     img.onerror = () => {
